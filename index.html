@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>QR Attendance System</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body { margin: 0; text-align: center; font-family: Arial; }
+.page { display: none; }
+.page.active { display: block; }
+
+#page1 { background: linear-gradient(120deg,#f6d365,#fda085); padding:40px; min-height:100vh; }
+#page2 { background: linear-gradient(120deg,#84fab0,#8fd3f4); padding:40px; min-height:100vh; }
+#page3 { background: linear-gradient(120deg,#a1c4fd,#c2e9fb); padding:40px; min-height:100vh; }
+#page4 { background: linear-gradient(120deg,#d4fc79,#96e6a1); padding:40px; min-height:100vh; }
+
+button {
+  padding: 12px 20px; margin-top: 12px;
+  background: #0047b3; color: white; border: none;
+  font-size: 18px; border-radius: 6px; cursor: pointer;
+}
+input { padding: 12px; width: 60%; margin-top: 10px; border-radius: 6px; font-size: 18px; }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: TEACHER -->
+<div id="page1" class="page active">
+  <h1>QR Code Attendance System</h1>
+  <button onclick="generateQR()">Generate Session QR</button><br><br>
+  <div id="qrcode"></div>
+  <br>
+  <button onclick="showPage(2)">Scan QR (Laptop Camera)</button>
+</div>
+
+<!-- PAGE 2: CAMERA SCAN -->
+<div id="page2" class="page">
+  <h2>Scan QR Code</h2>
+  <div id="reader" style="width:300px;margin:auto;"></div>
+</div>
+
+<!-- PAGE 3: LOGIN -->
+<div id="page3" class="page">
+  <h2>Enter Your Details</h2>
+  <input id="name" placeholder="Enter Name"><br>
+  <input id="roll" placeholder="Enter Roll Number"><br>
+  <button onclick="submitAttendance()">Submit</button>
+</div>
+
+<!-- PAGE 4: SUCCESS -->
+<div id="page4" class="page">
+  <h1>✅ Attendance Marked Successfully</h1>
+  <h2 id="out"></h2>
+</div>
+
+<script>
+let SHEET_URL = "YOUR_WEB_APP_URL_HERE"; // Replace this with your Google Sheet Web App URL
+
+function showPage(n) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById("page"+n).classList.add("active");
+
+  // Start QR scanner when page2 is active
+  if(n === 2) startScanner();
+}
+
+function generateQR() {
+  document.getElementById("qrcode").innerHTML = "";
+  new QRCode(document.getElementById("qrcode"), window.location.href + "#login");
+}
+
+if (window.location.hash === "#login") showPage(3);
+
+let html5QrCode;
+
+function startScanner() {
+  if(html5QrCode) return; // already running
+  html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    qrCodeMessage => {
+      if(qrCodeMessage.includes("#login")) {
+        html5QrCode.stop();
+        html5QrCode = null;
+        showPage(3);
+      }
+    }
+  ).catch(err => console.error(err));
+}
+
+function submitAttendance() {
+  let name = document.getElementById("name").value;
+  let roll = document.getElementById("roll").value;
+  if(name=="" || roll=="") return alert("Enter all fields");
+
+  let d=new Date();
+  let date=d.toLocaleDateString(), time=d.toLocaleTimeString();
+
+  fetch(SHEET_URL, {
+    method: "POST",
+    body: JSON.stringify({ name, roll, date, time })
+  }).then(() => {
+    document.getElementById("out").innerText = name + " (" + roll + ")";
+    showPage(4);
+  }).catch(err => alert("Failed to submit attendance"));
+}
+</script>
+
+</body>
+</html>
